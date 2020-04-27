@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mall/pages/index_page.dart';
 
 void main() => runApp(MyApp());
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   @override
-  State<StatefulWidget> createState() {
-    return null;
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter_Mall',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: IndexPage(),
+    );
   }
 }
