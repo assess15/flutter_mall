@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_easyrefresh/easy_refresh.dart';
 import 'package:flutter_mall/config/service_url.dart';
 import 'package:flutter_mall/service/service_method.dart';
 import 'package:flutter_mall/utils/ToastUtil.dart';
@@ -16,6 +17,12 @@ class HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
+  int page = 0;
+  List<Map> hotGoodsList = [];
+
+  GlobalKey<RefreshFooterState> _footerKey =
+      new GlobalKey<RefreshFooterState>();
+
   @override
   void initState() {
     super.initState();
@@ -23,9 +30,10 @@ class HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
         appBar: AppBar(
-          title: Text('ffff'),
+          title: Text('百姓生活+'),
         ),
         body: FutureBuilder(
           future: requestPost(homePageContentUrl,
@@ -35,13 +43,13 @@ class HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin {
               var data = json.decode(snapshot.data.toString());
               List<Map> swiperDataList = List<Map>.from(data['data']['slides']);
               List<Map> navigatorList =
-              List<Map>.from(data['data']['category']);
+                  List<Map>.from(data['data']['category']);
               String adPicture =
-              data['data']['advertesPicture']['PICTURE_ADDRESS'];
+                  data['data']['advertesPicture']['PICTURE_ADDRESS'];
               String leaderPhone = data['data']['shopInfo']['leaderPhone'];
               String leaderImage = data['data']['shopInfo']['leaderImage'];
               List<Map> recommendList =
-              List<Map>.from(data['data']['recommend']);
+                  List<Map>.from(data['data']['recommend']);
               String floor1Title = data['data']['floor1Pic']['PICTURE_ADDRESS'];
               String floor2Title = data['data']['floor2Pic']['PICTURE_ADDRESS'];
               String floor3Title = data['data']['floor3Pic']['PICTURE_ADDRESS'];
@@ -50,21 +58,45 @@ class HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin {
               List<Map> floor2 = List<Map>.from(data['data']['floor2']);
               List<Map> floor3 = List<Map>.from(data['data']['floor3']);
 
-              return ListView(
-                children: <Widget>[
-                  CustomSwiper(swiperDateList: swiperDataList),
-                  TopNavigator(navigatorList: navigatorList),
-                  AdBanner(adPicture: adPicture),
-                  LeaderPhone(
-                      leaderImage: leaderImage, leaderPhone: leaderPhone),
-                  Recommend(recommendList: recommendList),
-                  FloorTitle(pictureAddress: floor1Title),
-                  FloorContent(floorGoodsList: floor1),
-                  FloorTitle(pictureAddress: floor2Title),
-                  FloorContent(floorGoodsList: floor1),
-                  FloorTitle(pictureAddress: floor3Title),
-                  FloorContent(floorGoodsList: floor1),
-                ],
+              return EasyRefresh(
+                refreshFooter: ClassicsFooter(
+                  key: _footerKey,
+                  bgColor: Colors.white,
+                  textColor: Colors.black26,
+                  moreInfoColor: Colors.black26,
+                  showMore: true,
+                  noMoreText: '加载完成',
+//                  moreInfo: '加载中...',
+                  loadReadyText: '上拉加载',
+                ),
+                child: ListView(
+                  children: <Widget>[
+                    CustomSwiper(swiperDateList: swiperDataList),
+                    TopNavigator(navigatorList: navigatorList),
+                    AdBanner(adPicture: adPicture),
+                    LeaderPhone(leaderImage: leaderImage, leaderPhone: leaderPhone),
+                    Recommend(recommendList: recommendList),
+                    FloorTitle(pictureAddress: floor1Title),
+                    FloorContent(floorGoodsList: floor1),
+                    FloorTitle(pictureAddress: floor2Title),
+                    FloorContent(floorGoodsList: floor2),
+                    FloorTitle(pictureAddress: floor3Title),
+                    FloorContent(floorGoodsList: floor3),
+                    _hotGoods(),
+                  ],
+                ),
+                loadMore: () async {
+                  var pageData = {'page': page};
+                  await requestPost(homePageBelowContentUrl, fromData: pageData)
+                      .then((value) {
+                    var data = json.decode(value.toString());
+                    List<Map> newGoodsList = List<Map>.from(data['data']);
+                    setState(() {
+                      hotGoodsList.addAll(newGoodsList);
+                      page++;
+                    });
+                  });
+                },
               );
             } else {
               return Center(
@@ -72,6 +104,68 @@ class HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin {
             }
           },
         ));
+  }
+
+  /// 火爆专区
+  Widget _hotGoods() {
+    return Container(
+      child: Column(
+        children: <Widget>[
+          _hotTitle,
+          _hotList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _hotTitle = Container(
+    color: Colors.transparent,
+    alignment: Alignment.center,
+    margin: EdgeInsets.only(top: 10, bottom: 10),
+    child: Text('火爆专区', style: TextStyle(color: Colors.black45)),
+  );
+
+  Widget _hotList() {
+    if (hotGoodsList.length > 0) {
+      List<Widget> listWidget = hotGoodsList.map((item) {
+        return InkWell(
+          onTap: () {},
+          child: Container(
+            padding: EdgeInsets.all(5),
+            margin: EdgeInsets.only(bottom: 3),
+            color: Colors.white,
+            width: ScreenUtil().setWidth(372),
+            child: Column(
+              children: <Widget>[
+                Image.network(item['image'], width: ScreenUtil().setWidth(370)),
+                Text(item['name'],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: Colors.pink, fontSize: ScreenUtil().setSp(26))),
+                Row(
+                  children: <Widget>[
+                    Text('${item['mallPrice']}'),
+                    Text(
+                      '${item['price']}',
+                      style: TextStyle(
+                          color: Colors.black26,
+                          decoration: TextDecoration.lineThrough),
+                    )
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList();
+      return Wrap(
+        spacing: 2,
+        children: listWidget,
+      );
+    } else {
+      return Text('上拉加载');
+    }
   }
 }
 
@@ -142,6 +236,7 @@ class TopNavigator extends StatelessWidget {
       padding: EdgeInsets.all(3),
       child: GridView.count(
         crossAxisCount: 5,
+        // 静止回弹,否则下拉刷新和GridView冲突
         physics: NeverScrollableScrollPhysics(),
         padding: EdgeInsets.all(5),
         children: navigatorList.map((item) {
@@ -229,16 +324,10 @@ class Recommend extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: BorderSide(
-            color: Colors.black45,
-            width: 0.5,
-          ),
+          bottom: BorderSide(color: Colors.black45, width: 0.5),
         ),
       ),
-      child: Text(
-        '商品推荐',
-        style: TextStyle(color: Colors.pink),
-      ),
+      child: Text('商品推荐', style: TextStyle(color: Colors.pink)),
     );
   }
 
@@ -278,11 +367,10 @@ class Recommend extends StatelessWidget {
 //              style: TextStyle(color: Colors.black45),
 //            ),
             Text('￥${recommendList[index]['mallPrice'].toString()}'),
-            Text(
-              '￥${recommendList[index]['price'].toString()}',
-              style: TextStyle(
-                  color: Colors.grey, decoration: TextDecoration.lineThrough),
-            ),
+            Text('￥${recommendList[index]['price'].toString()}',
+                style: TextStyle(
+                    color: Colors.grey,
+                    decoration: TextDecoration.lineThrough)),
           ],
         ),
       ),
@@ -355,10 +443,4 @@ class FloorContent extends StatelessWidget {
       ),
     );
   }
-}
-
-void prints() {
-  print('设备像素密度: ${ScreenUtil.pixelRatio}');
-  print('设备高: ${ScreenUtil.screenHeight}');
-  print('设备宽: ${ScreenUtil.screenWidth}');
 }

@@ -57,3 +57,8 @@ Future requestPost(url, {fromData}) async {
 2.   @override
      bool get wantKeepAlive => true;
 3. IndexedStack
+
+### GridView EasyRefresh 冲突
+
+// 静止回弹,否则下拉刷新和GridView冲突
+physics: NeverScrollableScrollPhysics(),
